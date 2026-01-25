@@ -1,33 +1,52 @@
-tell application "Spotify"
-	set normalVolume to 80
-	set adVolume to 2
-	
-	repeat
+property normalVolume : 80
+property adVolume : 2
+
+on idle
+	tell application "Spotify"
 		try
 			if player state is playing then
-				-- Hent info om det nuværende nummer
 				set currentTrack to current track
-				set trackPop to popularity of currentTrack
 				set trackUrl to spotify url of currentTrack
+				set trackName to name of currentTrack
+				set trackArtist to artist of currentTrack
+				set trackAlbum to album of currentTrack
+				set trackNum to track number of currentTrack
 				
-				-- LOGIKKEN:
-				-- Reklamer har ofte 0 popularitet, eller en URL der starter med "spotify:ad"
-				-- Bemærk: Spotify ændrer ofte hvordan dette virker for at snyde scripts.
+				set isAd to false
 				
-				if trackPop < 1 or trackUrl starts with "spotify:ad" then
-					-- Hvis det ligner en reklame, skru ned
+				-- TJEK 1: Den mest sikre (URL-tjek)
+				if trackUrl starts with "spotify:ad" or trackUrl contains ":ad:" then
+					set isAd to true
+					
+					-- TJEK 2: Manglende metadata (Reklamer har ofte ingen artist eller albumnavn)
+				else if trackArtist is "" or trackArtist is "Spotify" then
+					set isAd to true
+					
+					-- TJEK 3: Spor-nummer (Sange i et album har et nummer, reklamer er ofte nr. 0)
+				else if trackNum is 0 and trackAlbum is "" then
+					set isAd to true
+				end if
+				
+				-- LOGIK FOR LYDSTYRKE
+				if isAd is true then
 					if sound volume > adVolume then
 						set sound volume to adVolume
 					end if
 				else
-					-- Hvis det er musik, skru op igen (hvis den er nede)
+					-- Det er musik (selvom populariteten er lav)
 					if sound volume ≤ adVolume then
 						set sound volume to normalVolume
 					end if
 				end if
 			end if
+		on error
+			-- Ved fejl gør vi intet
 		end try
-		
-		delay 1 -- Vent 2 sekunder før næste tjek
-	end repeat
-end tell
+	end tell
+	return 1
+end idle
+
+on quit
+	tell application "Spotify" to set sound volume to normalVolume
+	continue quit
+end quit
